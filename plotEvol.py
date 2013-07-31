@@ -29,7 +29,7 @@ import math
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.cm as cm
 import matplotlib.mlab as mlab
-
+import backEvol
 
 class Background:
     """Class representing fields, fields velocities and densities."""
@@ -111,280 +111,22 @@ def Hubble(st):
     global H, MPL
     H = sqrt((1/(3.0 * MPL ** 2)) * (sum(st._dens) + fielddens(st)))
 
-
-
-"""Evolve the background."""    
-def fb(st):
-    global H, coupl, gamma
-
-    """ Background dynamics equations."""
-    return Background(st._phid, 
-                 [-(3 * H + gamma) * st._phid[i] - derivV(st)[i] for i in range(len(st._phi))],
-                 [(-3 * H * (1 + st._w[i]) * st._dens[i]) + (gamma * coupl[i] * fielddens(st)) 
-                  for i in range(len(st._dens))], st._w)
-
-
-"""Evolve the perturbation."""
-def fp(st, stb):
-    global H, coupl, gamma, mass, a, MPL
-    k = st._k
-    """ Auxilliarry variables."""
-    sumphid = sum([stb._phid[i]**2 for i in range(len(stb._phid))])
-    phidphi = sum([stb._phid[i] * st._dphi[i] for i in range(len(stb._phi))])
-    
-    fdens = fielddens(stb)
-    dfdens = sum([(stb._phid[i] * st._dphid[i])
-             for i in range(len(st._dphi))]) + sum([derivV(stb)[i] * st._dphi[i]
-             for i in range(len(st._dphi))])- (sumphid * st._np)
-    sigmafield = - (k**2) * phidphi/sumphid
-    """ Derivatives of each perturbation."""
-    nps = -(st._np * (((k ** 2)/(3 * (a ** 2) * H)) +  H)) - ((1./(6. * (MPL ** 2) * H))
-          * (sum([stb._dens[i] * st._ddens[i] for i in range(len(st._ddens))]) + dfdens))
-    
-    phiSpeed = st._dphid
-    phiAcc = [ -((3 * H + gamma) * st._dphid[i]) - (((mass[i] ** 2) + ((k/a)**2)) * st._dphi[i])
-                - ((2 * (mass[i] ** 2) * stb._phi[i] * st._np) - ((4. * stb._phid[i]) * nps))
-               for i in range(len(st._dphi))]
-    
-    densSpeed = [-((1 + stb._w[i]) * st._sdens[i]/a) + (3 * (1 + stb._w[i]) * nps) + 
-                  ((coupl[i] * gamma) * (fdens/stb._dens[i]) * ((dfdens/fdens) + st._np - st._ddens[i])) 
-                  for i in range(len(st._ddens))]
-    ddensSpeed = [(((k ** 2)/a) * (st._np + (3 * stb._w[i] * st._ddens[i]/4.)))
-                  - ((1 - (3 * stb._w[i])) * H * st._sdens[i]) 
-                  + ((coupl[i] * gamma) * (fdens/stb._dens[i]) 
-                  * ((sigmafield/(1+stb._w[i])) - st._sdens[i])) 
-                  for i in range(len(st._sdens))]
-        
-    """
-    # Tests for numerical accuracy:
-    if not (pertSpeed[0] == phiSpeed):
-        print "Different speeds..."
-    if not (pertSpeed[1] == phiAcc):
-        print "Different acc.."
-    if not (pertSpeed[2] == densSpeed[0]):
-        print "Different dens speed1.."    
-    if not (pertSpeed[3] == densSpeed[1]):
-        print "Different dens speed2.."    
-    if not (pertSpeed[4] == ddensSpeed[0]):
-        print "Different dens speed3.."
-    if not (pertSpeed[5] == ddensSpeed[1]):
-        print "Different dens speed4.."
-    if not (pertSpeed[6] == nps):
-        print "Different nps" 
-    print "Speed 1...", pertSpeed
-    print "Speed 2...", phiSpeed, phiAcc, densSpeed, ddensSpeed, nps
-    """
-
-    """Perturbation dynamics ODE."""
-    return Perturbation(phiSpeed, phiAcc, densSpeed, ddensSpeed, nps, k)
-
-
-
-
-"""Evolve the function."""
-def f(st):
-    return State(fb(st._b), [fp(st._p[i], st._b) for i in range(len(st._p))])
-
-
-
-"""Sum between two backgrounds."""
-def l_sum(st1, st2):
-    return Background([st1._phi[i] + st2._phi[i] for i in range(len(st1._phi))],
-                      [st1._phid[i] + st2._phid[i] for i in range(len(st1._phid))],
-                      [st1._dens[i] + st2._dens[i] for i in range(len(st1._dens))],
-                      st1._w)
-
-
-
-"""Product between background class and a scalar."""
-def l_product(st1, r):
-    return Background([st1._phi[i] * r for i in range(len(st1._phi))],
-                      [st1._phid[i] * r for i in range(len(st1._phid))],
-                      [st1._dens[i] * r for i in range(len(st1._dens))],
-                      st1._w)
-
-
-
-"""Sum between two perturbations."""
-def p_sum(st1, st2):
-    return Perturbation([st1._dphi[i] + st2._dphi[i] for i in range(len(st1._dphi))],
-                        [st1._dphid[i] + st2._dphid[i] for i in range(len(st1._dphid))],
-                        [st1._ddens[i] + st2._ddens[i] for i in range(len(st1._ddens))],
-                        [st1._sdens[i] + st2._sdens[i] for i in range(len(st1._sdens))],
-                        st1._np + st2._np, st1._k)
-
-
-
-"""Product between the perturbation and a scalar."""
-def p_product(st1, r):
-    return Perturbation([st1._dphi[i] * r for i in range(len(st1._dphi))],
-                        [st1._dphid[i] * r for i in range(len(st1._dphid))],
-                        [st1._ddens[i] * r for i in range(len(st1._ddens))],
-                        [st1._sdens[i] * r for i in range(len(st1._sdens))],
-                        st1._np * r, st1._k)
-
-
-
-"""Sum between two general classes."""
-def s_sum(st1, st2):
-    return State(l_sum(st1._b, st2._b), [p_sum(st1._p[i], st2._p[i]) for i in range(len(st1._p))])
-
-
-
-"""Product between two general classes."""
-def s_product(st1, r):
-    return State(l_product(st1._b, r), [p_product(st1._p[i], r) for i in range(len(st1._p))])
-
-
-
-"""Fourth order Runge Kutta."""
-def rk4(st):
-    a1 = f(st)
-    a2 = f(s_sum(st, s_product(a1, dt/2)))
-    a3 = f(s_sum(st, s_product(a2, dt/2)))
-    a4 = f(s_sum(st, s_product(a3, dt)))
-    return s_sum(st, s_product(s_sum(a1, s_sum(a4, s_sum(s_product(a2, 2.), s_product(a3, 2.)))), dt/6))
-
-
-
-"""Calculate curvature perturbations."""
-def curvature(st, stb):
-    global H, gamma, coupl
-    k = st._k
-    sumphid = sum([(stb._phid[i]**2/2 + V(stb)) 
-                   for i in range(len(stb._phid))])
-    phidphi =  sum([(derivV(stb)[i] * st._dphi[i])  
-                    for i in range(len(st._dphi))])
-    phidphi = sum([(stb._phid[i] * st._dphid[i]) + (derivV(stb)[i] * st._dphi[i])  
-                   for i in range(len(st._dphi))]) - (sumphid * st._np)
-    zetaphi = - st._np + ((phidphi)/(3 * (1 + (gamma/H)) * sumphid))
-    zetadens = [-st._np + (st._ddens[i]/(3*(1+stb._w[i]) - (coupl[i] * gamma * fielddens(stb)/(H * stb._dens[i]))))
-                 for i in range(len(stb._dens))]
-    return (zetaphi, zetadens)
-
-
-def curvatureMatrix(curv):
-    cMatrix = zeros(shape = (1 + len(curv[1]), 1 + len(curv[1])))
-    cMatrix[0, 0] = curv[0] ** 2
-    for i in range(len(curv[1])):
-        cMatrix[0, 1 + i] = curv[0] * curv[1][i]
-        cMatrix[1 + i, 0] = cMatrix[0, 1 + i]
-    for i in range(len(curv[1])):
-        for j in range(len(curv[1])):
-            cMatrix[1 + i, 1 + j] = curv[1][i] * curv[1][j]
-    return cMatrix
-
-
 def curvatureSum(curv, stb):
     sumphid = sum([(stb._phid[i]**2/2 + V(stb)) for i in range(len(stb._phid))])
-    total = (sum([(stb._phid[i]**2/2 + V(stb)) for i in range(len(stb._phid))]) + sum([stb._dens[i] * (1 + stb._w[i])  for i in range(len(stb._dens))]))
+    total = (sum([(stb._phid[i]**2/2 + V(stb)) for i in range(len(stb._phid))])
+                 + sum([stb._dens[i] * (1 + stb._w[i])  for i in range(len(stb._dens))]))
     cSumTotal = sumphid * curv[0]/total
-    cSumTotal += sum([stb._dens[i] * (1 + stb._w[i]) * curv[1][i] / total for i in range(len(curv[1]))])
+    cSumTotal += sum([stb._dens[i] * (1 + stb._w[i]) * curv[1][i] / total for i
+                          in range(len(curv[1]))])
     return cSumTotal
-
-
-""" Calculate total curvature perturbation. """
-def curvTotal(curvMatrix, stb):
-    curv = 0.
-    sumphid = sum([(stb._phid[i]**2/2 + V(stb)) for i in range(len(stb._phid))])
-    total = (sumphid + sum([stb._dens[i] * (1 + stb._w[i])  for i in range(len(stb._dens))])) ** 2
-    curv += (sumphid ** 2) * curvMatrix[0,0] / total               
-    for i in range(1, len(curvMatrix)):
-        curv += 2. * sumphid * stb._dens[i - 1] * (1 + stb._w[i - 1]) * curvMatrix[0, i]/ total
-    for i in range(1, len(curvMatrix)):
-        for j in range(1, len(curvMatrix[0])):
-            curv += stb._dens[i - 1] * (1 + stb._w[i - 1]) * stb._dens[j - 1] * (1 + stb._w[j - 1]) * curvMatrix[i, j] / total
-    return curv
-                    
-
-"""Evolve the system using the ODEs."""
-def evolve():
-    global H, a, state, dt, dtInit, dN, gamma, FINAL_DENS, GAMMA_FINAL, tau, epsilon, sigmaInit, lambd, dtInit
-    time = 0
-    N = 0
-    startDecay = 0
-    endDecay = 0
-    gamma = 0.0
-    evolution = []
-    steps = 0
-    while ((fielddens(state._b) > FINAL_DENS)): #| (gamma < 10.0 * H)):
-        dt = dtInit * (1 + N)
-        Hubble(state._b)
-        if (startDecay == 0):
-            if (state._b._phi[0] < 0): 
-                print "***************************************"
-                print "Decay has started...."
-                gamma = GAMMA_FINAL
-                startDecay = 1
-                print fielddens(state._b)
-                print state._b._dens
-                print H
-                ratio = fielddens(state._b)/(state._b._dens[0] +  fielddens(state._b))
-                r = 3.* ratio/(4 - ratio)
-                print r
-                lambd[0] =  (8./9.) * (r ** 2) * 0.1 * (1/sigmaInit) ** 2
-                print "Lower bound for lambda: ", lambd[0] 
-                print "***************************************"
-        if (steps % 1000 == 0):
-            print "Number of steps..." + str(steps)
-            print a
-            print H
-            print state._p[0]._k/(a * H)
-            print fielddens(state._b)
-            print "a...", state._b._phi, state._b._dens[0]
-            print "b...", state._p[0]._dphi, state._p[0]._dphid, state._p[0]._ddens, state._p[0]._sdens, state._p[0]._np
-            print "b2...", state._p[1]._dphi, state._p[1]._dphid, state._p[1]._ddens, state._p[1]._sdens, state._p[1]._np
-            curv = curvature(state._p[0], state._b)
-            print "curvature", curv
-            curvMatrix = curvatureMatrix(curv)
-            sumphid = sum([(state._b._phid[i]**2/2 + V(state._b)) 
-                           for i in range(len(state._b._phid))])
-            print curvMatrix
-            print "Total curvature...", curvatureSum(curv, state._b) ** 2
-            curv = curvature(state._p[1], state._b)
-            print "curvature", curv
-            curvMatrix = curvatureMatrix(curv)
-            print curvMatrix
-            print "Total curvature...", curvatureSum(curv, state._b) ** 2
-            if ((gamma > H) & (endDecay == 0)):
-                ratio =fielddens(state._b)/(state._b._dens[0] + fielddens(state._b))
-                r = 3.* ratio/(4 + ratio)
-                lambd[1] =  (8./9.) * (r ** 2) * epsilon * (1/(sigmaInit))  ** 2
-                print r
-                print "Attention! lambda is",lambd
-                endDecay = 1
-            if (gamma > H):
-                print "Attention! lambda is",lambd
-        N += H * dt
-        a = exp(N)
-        time += dt
-        tau += dt/a
-        steps += 1
-        state = rk4(state)
-        if (((steps % 6 == 0) & (N < 2.0)) | ((steps % 50 == 0) & (N > 2.0))):
-            cur = [curvature(state._p[i], state._b) for i in range(len(state._p))]
-            curvMatrix = [curvatureMatrix(cur[i]) for i in range(len(state._p))]
-            curvatureTotal = [curvatureSum(cur[i], state._b) ** 2 for i  in range(len(state._p))] 
-            evolution.append((N, time, state, 
-                              [curvature(state._p[i], state._b) for i in range(len(state._p))], 
-                              curvMatrix, curvatureTotal))
-    return evolution
-
-
-"""Set initial conditions for perturbations."""
-def setInitPert(np, ks):
-    global tau, MPL, epsilon
-    p = []
-    for i in range(len(ks)):
-        p.append(Perturbation([0.000], [0.000], [-2 * np[i], -(3./2.) * np[i]], [(ks[i] ** 2) * tau * np[i]/2.,  (ks[i] ** 2) * tau * np[i]/2.], np[i], ks[i]))
-        p.append(Perturbation([-3. * MPL * np[i] * sqrt(epsilon)], [0.000], [0.0, 0.0], [0.0, 0.0], 0.0, ks[i]))
-    return p
 
 
 
 """Density evolution plotter."""
 def plotEvol(evolution):
     global file_number, plotpath, speciesName, MPLTEV
+    
+    """ Plot the value of the scalar field over a number of e-folds."""
     fig = p.figure()
     p.title(r'$\mathrm{Evolution\ of\ }\phi\mathrm{\ over\ a\ number\ of\ e-folds}$')
     p.plot([N[0] for N in evolution], [st[2]._b._phi for st in evolution], color = 'purple')
@@ -392,21 +134,26 @@ def plotEvol(evolution):
     p.ylabel(r'$\phi[M_{PL}]$')
     p.savefig(plotpath + str(file_number) + "phi.png", format = 'png')
     
+    """ Plot the density evolution over a number of e-folds."""
     fig = p.figure()
     ax = p.subplot(111)
     ax.set_ylabel(r'$\log_{100}(\rho_i[M_{PL}])$')
     ax.set_xlabel(r'$N$')
     p.text(0.1, math.log(evolution[0][2]._b._dens[0], 100) + 0.2, 
-           r'$T_{RH} = $' + str((evolution[-1][2]._b._dens[0]) ** (0.25) 
+            r'$T_{RH} = $' + str((evolution[-1][2]._b._dens[0]) ** (0.25) 
                                 * MPLTEV) + '$TeV$')
+    """ Plot the density of each species."""
     for i in range(len(evolution[0][2]._b._dens)):
         p.plot([N[0] for N in evolution],
                [math.log(st[2]._b._dens[i], 100) for st in evolution],
                label = r'$\log_{100}(\rho_{' + speciesName[i] + '})$', color = speciesColor[i])
+    """ Plot the density of the field(s). """
     p.plot([N[0] for N in evolution],
            [math.log(fielddens(st[2]._b), 100) for st in evolution], 
            label = r'$\log_{100}(\rho_{\sigma})$', color = 'purple')
     axT = ax.twinx()
+    
+    """ Plot temperature on the right axis."""
     axT.set_xlabel(r'$log_{100}(T[MeV])$')
     axT.semilogy([N[0] for N in evolution],
              [(st[2]._b._dens[0] ** (0.25)) * MPLTEV * (1.e6) for st in evolution],
@@ -425,13 +172,19 @@ def plotPert(evolution):
         p.title(r'Evolution of the curvature perturbations over a number of e-folds')
         p.xlabel(r'$N$')
         p.ylabel(r'$\zeta_i$')
+        
+        """ Plot curvature perturbation for the field(s). """
         p.plot([N[0] for N in evolution],
                [st[3][2 * i][0] + st[3][2 * i + 1][0] for st in evolution], 
                label = r'$\zeta_{\sigma}$', color = 'purple')
+        
+        """ Plot curvature perturbation of each species. """
         for j in range(len(evolution[0][2]._b._dens) - 1): 
             p.plot([N[0] for N in evolution],
                    [st[3][2 * i][1][j] + st[3][2 * i + 1][1][j] for st in evolution]
                    , label = r'$\zeta_{' + speciesName[j] + '}$', color = speciesColor[j])
+        
+        """ Plot the total curvature perturbation. """
         p.plot([N[0] for N in evolution], 
                [curvatureSum(st[3][2 * i], st[2]._b) 
                 + curvatureSum(st[3][2 * i + 1], st[2]._b)
@@ -441,17 +194,20 @@ def plotPert(evolution):
         p.text(0.1, -5.0, r'$k = $' + str(evolution[0][2]._p[0]._k))
         p.savefig(plotpath + str(file_number) + "curv_pert_" + str(i) + ".png", format = 'png')
 
-
+        """ Plot evolution of isocurvature over a number of e-folds"""
         fig = p.figure()
         p.title(r'Evolution of isocurvature over a number of e-folds')
         p.xlabel(r'$N$')
         p.ylabel(r'$S_i$')
+        
+        """ Plot isocurvature of field."""
         p.plot([N[0] for N in evolution],
                [3 * (st[3][2 * i][0] + st[3][2 * i + 1][0] 
                      - curvatureSum(st[3][2 * i], st[2]._b) 
                      - curvatureSum(st[3][2 * i + 1], st[2]._b))
                 for st in evolution], label = r'$S_{\sigma}$', color = 'purple')
 
+        """ Plot isocurvature of each species."""
         for j in range(1, len(evolution[0][2]._b._dens)):
             p.plot([N[0] for N in evolution],
                    [3 * (st[3][2 * i][1][j] + st[3][2 * i + 1][1][j] 
@@ -474,13 +230,17 @@ def plotDensPert(evolution):
         p.title(r'Evolution of the density perturbations over a number of e-folds')
         p.xlabel(r'$N$')
         p.ylabel(r'$\delta_i$')
+
+        """ Plot evolution of dens perturbbation for each species."""
         for j in range(len(evolution[0][2]._b._dens)):
             p.plot([N[0] for N in evolution],
                    [st[2]._p[2 * i]._ddens[j] + st[2]._p[2 * i + 1]._ddens[j] 
                     for st in evolution], label = r'$\delta_{' + speciesName[j] + ' }$', color = speciesColor[j])
+            
+        """ Plot evolution of Newtonian potential. """     
         p.plot([N[0] for N in evolution],
                [st[2]._p[2 * i]._np + st[2]._p[2 * i + 1]._np 
-                for st in evolution], label = r'$\sigma$', color = 'purple')
+                for st in evolution], label = r'$\psi$', color = 'purple')
         p.ylim(-10,10)
         p.legend()
         p.text(0.1, -5.0, r'$k = $' + str(evolution[0][2]._p[2 * i]._k))
@@ -498,6 +258,7 @@ def plotDensPert(evolution):
 
 
 
+""" Plot evolution of equation of state for the scalar field(s). """
 def plotW(evolution):
     global file_number, plotpath
     fig = p.figure()
@@ -509,7 +270,7 @@ def plotW(evolution):
     p.savefig(plotpath + str(file_number) + "eq_of_state.png", format = 'png')
 
 
-
+""" Plot curvature power-spetrum. """
 def plotCurvCorrelation(evolution):
     global lambd, plotpath, speciesName
     for i in range(len(evolution[0][2]._p)/2):
@@ -517,19 +278,21 @@ def plotCurvCorrelation(evolution):
         p.title(r'Evolution of the curvature power spectrum over a number of e-folds')
         p.xlabel(r'$N$')
         p.ylabel(r'$P_{\zeta_i}$')
+        """ Plot curvature power spectrum of the field(s). """
         p.plot([N[0] for N in evolution],
                [st[4][2 * i][0, 0] + st[4][2 * i + 1][0, 0]
                 for st in evolution], label = r'$P_{\zeta_{\sigma}}$', color = 'purple')
+        """ Plot curvature power spectrum of the species."""
         for j in range(1, 1 + len(evolution[0][2]._b._dens)):
             p.plot([N[0] for N in evolution],
                    [st[4][2 * i][j, j] + st[4][2 * i + 1][j, j] 
                     for st in evolution], label = r'$P_{\zeta_{' + speciesName[j - 1]  + '}}$', 
                    color = speciesColor[j - 1])
+        """ Plot total curvature power spectrum. """
         p.plot([N[0] for N in evolution],
                [st[5][2 * i] + st[5][2 * i + 1]
                 for st in evolution], label = r'$P_{\zeta_{total}}$', color = 'black')
         p.legend()
-        # p.text(0.1, -1, r'$k = $' + str(evolution[0][2]._p[2 * i]._k))
         last = evolution[len(evolution) - 1][5][2 * i] + evolution[len(evolution) - 1][5][2 * i + 1]
         begin =  evolution[0][5][2 * i] + evolution[0][5][2 * i + 1]
         actual_lambd = last/begin - 1
@@ -538,14 +301,18 @@ def plotCurvCorrelation(evolution):
         p.text(0.1, 1, r'$\lambda = \mathrm{' + str(actual_lambd) + '}$')
         p.savefig(plotpath + str(file_number) + "curvCorrel_" + str(i) + ".png", format = 'png')
 
-
+        """ Plot cross-species curvature power spectrum. """
         fig = p.figure()
         p.title(r'Evolution of cross-species spectrum over a number of e-folds')
         p.xlabel(r'$N$')
         p.ylabel(r'$P_{\zeta_i \zeta_j}$')
+        
+        """ Plot power spectra of the two-point function <\zeta_total \zeta_{fields}>. """ 
         p.plot([N[0] for N in evolution],
                [st[4][2 * i][0, 1] + st[4][2 * i + 1][0, 1] for st in evolution], label = r'$P_{\zeta \zeta_{\sigma}}$', 
                color = 'purple')
+        
+        """ Plot power spectra of the two-point function <\zeta_{r} \zeta_{species}>. """
         for j in range(2, 1 + len(evolution[0][2]._b._dens)):
             p.plot([N[0] for N in evolution],
                    [st[4][2 * i][1, j] + st[4][2 * i + 1][1, j] for st in evolution], 
@@ -556,11 +323,11 @@ def plotCurvCorrelation(evolution):
         p.savefig(plotpath + str(file_number) + "crossCorrel_" + str(i) + ".png", format = 'png')
 
         fig = p.figure()
-        p.title(r'Evolution of isocurvature spectrum over a number of e-folds'\
-)
+        p.title(r'Evolution of isocurvature spectrum over a number of e-folds')
         p.xlabel(r'$N$')
         p.ylabel(r'$P_{S_i \zeta}$')
         corel = []
+        """ Calculate corelation between species isocurvature and total curvature. """
         for j in range(2, 1 + len(evolution[0][2]._b._dens)):
             corel.append([3 * (curvatureSum((st[4][2 * i][j, 0] + st[4][2*i + 1][j, 0]
                                                , [st[4][2*i][j, q] + st[4][2*i + 1][j, q] for q in range(len(evolution[0][2]._b._dens))]), st[2]._b) 
@@ -568,9 +335,12 @@ def plotCurvCorrelation(evolution):
         corelsigma = [3 * (curvatureSum((st[4][2 * i][0, 0] + st[4][2*i + 1][0,0]
                                          , [st[4][2*i][0,1] + st[4][2*i + 1][0,1], st[4][2*i][0,2] + st[4][2*i + 1][0,2]]), st[2]._b) 
                            - (st[5][2 * i] + st[5][2 * i + 1])) for st in evolution]
+
+        """ Plot corelation between species isocurvature and total curvature perturbation. """
         for j in range(2, 1 + len(evolution[0][2]._b._dens)):                    
             p.plot([N[0] for N in evolution], corel[j - 2], label = r'$P_{S_{' + speciesName[j - 1] + '} \zeta_{total}}$',
                    color = speciesColor[j-1])
+        """ Plot correlation between field isocurvature and total curvature perturbation.""" 
         p.plot([N[0] for N in evolution], corelsigma, label = r'$P_{S_{\sigma} \zeta_{total}}$', color = 'purple')
         p.legend() 
         p.ylim(-50.0, 50.0)
@@ -578,8 +348,9 @@ def plotCurvCorrelation(evolution):
         p.savefig(plotpath + str(file_number) + "isoCorrel_" + str(i) + ".p\
 ng", format = 'png')
 
-        
 
+        
+""" Find the first directory which was not created for data output. """
 def dirNumber(dir_number):
     global datapath, statpath, plotpath
     if (not os.path.isdir('data/' + str(dir_number))):
@@ -588,6 +359,8 @@ def dirNumber(dir_number):
     statpath = 'stats/' + str(dir_number) + '/'
     plotpath = 'plot_data/' + str(dir_number) + '/'
     
+
+""" Find the first file number which we have not used."""
 def fileNumber():
     global file_number, datapath
     file_number = 0 
@@ -596,46 +369,7 @@ def fileNumber():
     return file_number
 
 
-
-def writeData(evolution):
-    global file_number, mass, gamma, sigmaInit, lambd, datapath, statpath, epsilon
-    datafile = open(datapath + 'evolution' + str(file_number) + '.out', 'w')
-    print "Printing data to evolution" + str(file_number) + ".out"
-    writeOut = "[" + str(mass) + ", " + str(sigmaInit) + ", " + str(gamma) + ", " + str(epsilon) + "]"
-    print >>datafile, writeOut
-    writeOut = "["
-    for ev in evolution:
-        writeOut += "["
-        writeOut += str(ev[0]) + ", "
-        writeOut += str(ev[1]) + ", "
-        writeOut += "[[" + str(ev[2]._b._phi) + ", " + str(ev[2]._b._phid) +  ", " + str(ev[2]._b._dens) + ", " + str(ev[2]._b._w) +  "],["
-        writeOut += str(ev[2]._p[0]._dphi) +  ", " + str(ev[2]._p[0]._dphid) + ", " + str(ev[2]._p[0]._ddens) +  ", " + str(ev[2]._p[0]._sdens) +  ", " + str(ev[2]._p[0]._np) + ", " + str(ev[2]._p[0]._k) +  "]],"
-        writeOut += str(ev[3]) + ", "
-        curvMatrices = [el.tolist() for el in ev[4]]
-        writeOut += str(curvMatrices) + ", "
-        writeOut += str(ev[5]) + "]"
-        if (ev != evolution[len(evolution) - 1]):
-            writeOut += ", "
-    writeOut += "]"
-    print >>datafile, writeOut    
-    datafile.close()
-
-    print "Printing statistics to stats" + str(file_number) + ".out"
-    print statpath
-    datafile = open(statpath + 'stats' + str(file_number) + '.out', 'w')
-    print >> datafile, "Number of fields: ", len(evolution[0][2]._b._phi)
-    print >> datafile, "Number of species: ", len(evolution[0][2]._b._dens)
-    print >> datafile, "Mass of the fields: ", mass
-    print >> datafile, "Initial value of the fields: ", sigmaInit
-    print >> datafile, "Initial density of species: ", evolution[0][2]._b._dens
-    print >> datafile, "Value of the slow-roll inflationary parameter: ", epsilon
-    print >>datafile, "Bounds for approximated lambda: ", lambd[0], lambd[1]
-    print >>datafile, "ActuSal value of lambda: ", calculateLambda(evolution)
-    print >>datafile, "Value of Gamma: ", gamma
-    datafile.close()
-    
-
-
+""" Plot curvature powerspectrum for a series of different initial parameters. """
 def plotCurvatures():
     global plotpath, proc, speciesName
     fig = p.figure()
@@ -649,7 +383,7 @@ def plotCurvatures():
                       (evolutions[i * proc][0][5][0] + 
                        evolutions[i * proc][0][5][1]) - 1.
                       for i in range(len(evolutions)/proc)])/(0.95 * len(evolutions)/(1.0 * proc))
-    print "separation", separation
+    """ Plot the evolution of total normalized curvature power spectrum. """
     for i in range(len(evolutions)/proc):
         evolution = evolutions[i * proc]
         nr += 1
@@ -670,6 +404,7 @@ def plotCurvatures():
     p.xlabel(r'$N$')
     p.ylabel(r'$\frac{S_{DM}}{S_{DM}(0)}$')
     nr = 0         
+    """ Plot the normalized iso-curvaton of dark matter for different init param."""
     for i in range(len(evolutions)/proc):
         evolution = evolutions[i * proc]
         nr += 1
@@ -682,6 +417,7 @@ def plotCurvatures():
     p.ylim(-50, 50)
     p.savefig(plotpath + 'iso_DM.png', format = 'png')
 
+    """ Plot the evolution of the normalized dark radiation iso-curvature. """ 
     if (len(evolutions[0][0][2]._b._dens) > 2):  
         p.title(r'Evolution of $' + speciesName[2] + ' $ isocurvature over a number of e-folds')
         p.xlabel(r'$N$')
@@ -706,6 +442,8 @@ def plotCurvatures():
         p.savefig(plotpath + 'iso_DR.png', format = 'png')
 
 
+
+""" Plot normalized curvature power spectrum and associated values of \epsilon. """
 def initCurvSpectrum():
     global evolutions, plotpath, epsilons, proc, speciesName
     fig = p.figure()
@@ -742,10 +480,11 @@ def initCurvSpectrum():
     
 
 
+""" Calculate the isocurvature correlation for DM."""
 def isoCorrelCurv(st, evolution):
     begin = 3 * (evolution[0][3][0][1][1] + evolution[0][3][0][1][1] 
                  - curvatureSum(evolution[0][3][0], evolution[0][2]._b) 
-                 -  curvatureSum(evolution[0][3][0], evolution[0][2]._b)) 
+                 - curvatureSum(evolution[0][3][0], evolution[0][2]._b)) 
     iso =  3 * (st[3][0][1][1] + st[3][1][1][1] 
                   - curvatureSum(st[3][0], st[2]._b) 
                   - curvatureSum(st[3][1], st[2]._b))/begin
@@ -753,14 +492,20 @@ def isoCorrelCurv(st, evolution):
     
 
 
+""" Calculate correlation between the radiation curvature and the 
+    iso-curvature of species j. """
 def isoCorrelCurvature(curvMatrix, j):
     return 3. * (curvMatrix[1, j] - curvMatrix[1, 1])
 
 
+
+""" Calculate correlation between the iso-curvature of species i and j. """
 def isoCorrelij(curvMatrix, i, j):
     return 3. * (curvMatrix[i, j] - curvMatrix[1, j] - curvMatrix[1, i] + curvMatrix[1, 1])
 
 
+
+""" Calculate correlation power spectrum of iso-curvvature of species j. """
 def isoSelfCorrel(curvMatrix, j):
     if (len(curvMatrix) < j):
         print "Error: Index for isocurvature correlation out-of-bounds"
@@ -769,6 +514,7 @@ def isoSelfCorrel(curvMatrix, j):
 
     
 
+""" Calculate parameter \lambda. """
 def calculateLambda(evolution):
     last = evolution[-1][5][0] + evolution[-1][5][1]
     begin = evolution[0][5][0] + evolution[0][5][1]
@@ -776,6 +522,7 @@ def calculateLambda(evolution):
 
 
 
+""" Calculate parameter \alpha_{j}. """
 def calculateAlpha(evolution, j):
     st = evolution[-1]
     ratio = (isoSelfCorrel(st[4][0], j + 1) + isoSelfCorrel(st[4][1], j + 1))/(st[5][0] + st[5][1])
@@ -783,17 +530,16 @@ def calculateAlpha(evolution, j):
 
 
 
+""" Calculate parameter r_{j}. """
 def calculateR(evolution, j):
     st = evolution[len(evolution) - 1]
-    print "calculate R ", j
-    print (isoSelfCorrel(st[4][0], j + 1) + isoSelfCorrel(st[4][1], j + 1))
-    print isoCorrelCurvature(st[4][0], j + 1) + isoCorrelCurvature(st[4][1], j + 1)
-    print st[5][0] + st[5][1]
     ratio = (isoCorrelCurvature(st[4][0], j + 1) + isoCorrelCurvature(st[4][1], j + 1))/sqrt((isoSelfCorrel(st[4][0], j + 1) + isoSelfCorrel(st[4][1], j + 1)) * (st[5][0] + st[5][1]))
     print ratio
     return ratio
 
 
+
+""" Calculate parameter r_{ij}."""
 def calculateRij(evolution, i, j):
     st = evolution[- 1]
     print "Calculate Rij", i, " ", j
@@ -805,6 +551,8 @@ def calculateRij(evolution, i, j):
     return ratio
     
 
+
+""" Plot the dependence of all the curvaton parameters as a function of \Gamma. """
 def plotLambdasGamma():
     global evolutions, lam, gammas, epsilons, speciesName, MPLTEV
     if (len(gammas) <= len(evolutions)):
@@ -815,7 +563,8 @@ def plotLambdasGamma():
         ax2 = p.subplot2grid((3, 3), (1,0), colspan = 3)
         ax3 = p.subplot2grid((3, 3), (2,0), colspan = 3)
         lambds = [lam[i * len(epsilons)] for i in range(len(gammas))]
-        print lambds
+    
+        """ Plot the dependence of \lambda as a function of \Gamma. """
         ax1.set_ylabel(r'$\lambda$')
         ax1.set_xlabel(r'$\log_{10}(\Gamma[M_{PL}])$')
         ax1.plot([math.log(gam, 10) for gam in gammas], [lam for lam in lambds], color = 'black') 
@@ -823,38 +572,41 @@ def plotLambdasGamma():
         ax1.text(math.log(gammas[-1], 10) - 2, lambds[0] * 4./5., r'$m_{\sigma} = \mathrm{' + str(masses[0] * MPLTEV) + '} TeV$', fontsize = 12)
         ax4 = ax1.twiny()
         ax4.set_xlabel(r'$log_{10}(T_{RH}[MeV])$')
-        #ax4.plot([math.log((evolution[-1][2]._b._dens[0] ** (0.25)) * MPLTEV * (1.e6), 10)
-        #          for evolution in evolutions], [0 for evolution in evolutions]
-        #         , visible = False)
         
+        """ Plot the dependence of \alpha_{DM} as a function of \Gamma. """
         alphasDM = [calculateAlpha(evolutions[i * len(epsilons)], 1) for i in range(len(gammas))]
         ax2.set_ylabel(r'$\alpha$')
         ax2.set_xlabel(r'$\log_{10}(\Gamma[M_{PL}])$')
         print "alphaDM", alphasDM
         ax2.plot([math.log(gam, 10) for gam in gammas], alphasDM, color = speciesColor[1])
+        """ Plot the dependence of \alpha_{DR} as a function of \Gamma. """
         if (len(evolutions[0][0][2]._b._dens) > 2):
             alphasDR = [calculateAlpha(evolutions[i * len(epsilons)], 2) for i in range(len(gammas))]
             ax2.plot([math.log(gam, 10) for gam in gammas], alphasDR, color = speciesColor[2])
             
+        """ Plot the dependence of \r_{DM} as a function of \Gamma. """
         rsDM = [calculateR(evolutions[i * len(epsilons)], 1) for i in range(len(gammas))]
-        print "rDM", rsDM
         ax3.set_ylabel(r'$r$')
         ax3.set_xlabel(r'$\log_{10}(\Gamma)$')
         ax3.plot([math.log(gam, 10) for gam in gammas], rsDM, color = speciesColor[1], label = r'$\mathrm{dark\ matter}$')
 
         
         if (len(evolutions[0][0][2]._b._dens) > 2):
+            """ Plot the dependence of \r_{DR} as a function of \Gamma. """
             alphasDR = [calculateAlpha(evolutions[i * len(epsilons)], 2) for i in range(len(gammas))]
             ax2.plot([math.log(gam, 10) for gam in gammas], alphasDR, color = speciesColor[2])
             rsDR = [calculateR(evolutions[i * len(epsilons)], 2) for i in range(len(gammas))]
             ax3.plot([math.log(gam, 10) for gam in gammas], rsDR, color = speciesColor[2], label = r'$\mathrm{dark\ radiation}$')
-            print "rsDR", rsDR
+   
+            """ Plot the dependence of \r_{DRDM} as a function of \Gamma. """
             rsDRDM = [calculateRij(evolutions[i * len(epsilons)], 1, 2) for i in range(len(gammas))]
-            print "rsDRM", rsDRDM
             ax3.plot([math.log(gam, 10) for gam in gammas], rsDRDM, linestyle = '--', color = speciesColor[1])
             ax3.plot([math.log(gam, 10) for gam in gammas], rsDRDM, linestyle = ':', color = speciesColor[2])
+
         lg = ax3.legend(loc = 0, prop = {'size': 12})
         lg.draw_frame(False)
+        
+        """ Plot the value estimates for the parameter \Gamma. """
         
         upGamma = math.log(100 * (masses[0] ** 3)/(MPL ** 2), 10)
         downGamma = math.log(0.1 *  (masses[0] ** 3)/(MPL ** 2), 10)
@@ -880,6 +632,8 @@ def plotLambdasGamma():
 
         fig.savefig(plotpath +  "lamalpgam.png", format = 'png') 
  
+        """ Plot the evolution of densities in three subplots for 
+            different values of \Gamma. """
         fig = p.figure()
         axes = []
         for i in range(3):
@@ -905,8 +659,6 @@ def plotLambdasGamma():
                     axes[i][j].text(1, bott + 2.00, r'$\Gamma = \mathrm{' + str(gammas[i * (len(gammas)/3)]) + '} M_{PL}$')
                     axes[i][j].set_xlim(0, evolutions[0][-1][0])
                     axes[i][j].set_ylim(bottom = bott)
-                     #axes[i][j].legend()
-                     #axes[i][j].text()
         lg = axes[0][0].legend(loc = 0, prop = {'size': 10})
         lg.draw_frame(False)
         print "hahaha"
@@ -914,14 +666,17 @@ def plotLambdasGamma():
 
 
 
+""" Plot the contours of all the curvaton parameters as a 
+    function of m_{\sigma} and \sigma(0). """
 def contMassSigma():
     global masses, sigmas, evolutions, epsilons, lam, file_number, speciesName
     if (len(evolutions) >= len(masses) * len(sigmas)):
         logmasses = [math.log(mass * MPLTEV, 10) for mass in masses]
         logsigmas = [math.log(sig, 10) for sig in sigmas]
         M, S = meshgrid(logmasses, logsigmas)
-        print len(lam) 
+        
         for q in range(1, len(evolutions[0][0][2]._b._dens)):
+            """ Calculate the matrix of curvaton parameters. """
             lambdaMatrix = []
             for i in range(len(logmasses)):
                 lambdaLines = []
@@ -942,8 +697,8 @@ def contMassSigma():
                 for j in range(len(logsigmas)):
                     rLines.append(calculateR(evolutions[((len(logsigmas) * i) + j) * len(gammas) * len(epsilons) + file_number], q))
                 rMatrix.append(alphaLines)
-
-
+                
+            """ Plot parameter \lambda. """
             fig = p.figure()
             im = p.imshow(lambdaMatrix, interpolation='bilinear', origin='lower',
                           cmap=cm.gray, extent=(logmasses[0], logmasses[-1], 
@@ -966,8 +721,8 @@ def contMassSigma():
             print file_number
             p.savefig(plotpath + speciesName[q] + 'contLambdaMassSigma'    
                       + str(file_number) + ".png", format = 'png') 
-
-
+            
+            """ Plot parameter r."""
             fig = p.figure()
             im = p.imshow(rMatrix, interpolation='bilinear', origin='lower',
                           cmap=cm.gray, extent=(logmasses[0], logmasses[-1],
@@ -989,8 +744,8 @@ def contMassSigma():
             p.ylabel(r'$\log_{10}(\sigma(0))[M_{PL}]$')
             p.savefig(plotpath + speciesName[q] +'contrMassSigma' 
                       + str(file_number) + ".png" , format = 'png')
-
-
+            
+            """ Plot parameter \alpha."""
             fig = p.figure()
             im = p.imshow(alphaMatrix, interpolation='bilinear', origin='lower',
                           cmap=cm.gray, extent=(logmasses[0], logmasses[-1],
@@ -1013,6 +768,7 @@ def contMassSigma():
                       + str(file_number) + ".png", format = 'png')
         for q in range(1, len(evolutions[0][0][2]._b._dens)):
             for t in range(q + 1, len(evolutions[0][0][2]._b._dens)):
+                """ Calculate parameter r_{ij}. """
                 rijMatrix = []
                 for i in range(len(logmasses)):
                     rijLines = []
@@ -1020,12 +776,12 @@ def contMassSigma():
                        rijLines.append(calculateRij(evolutions[((len(logsigmas) * i) + j) * len(gammas) 
                                                                    * len(epsilons) + file_number], q, t))
                     rijMatrix.append(rijLines)
-                print '********rijMatrix***************'
-                print rijMatrix
+
+                """ Plot parameter r_{ij}. """
                 fig = p.figure()
                 im = p.imshow(rijMatrix, interpolation='bilinear', origin='lower',
                               cmap=cm.gray, extent=(logmasses[0], logmasses[-1],
-                                                logsigmas[0], logsigmas[-1]))
+                                                    logsigmas[0], logsigmas[-1]))
                 levels = [0.28, 0.29, 0.3, 0.31, 0.32, 0.33, 0.34, 0.35, 0.36]
                 CS = p.contour(rijMatrix, levels, origin = 'lower',
                                linewidths = 2,
@@ -1046,6 +802,7 @@ def contMassSigma():
 
 
 
+""" Read values of the curvaton parameters. """
 def readInitVal(dir_number):
     global masses, sigmas, gammas, epsilons
     datafile = open('data/' + str(dir_number) + '/' + 'initValues.out', 'r')
@@ -1058,6 +815,7 @@ def readInitVal(dir_number):
 
 
 
+""" Read data of curvaton evolution. """
 def readFile(dir_number, file_number):
     global evol, mass, sigmaInit, gammafinal, epsilon
     datafile = open('data/' + str(dir_number) + '/' + 'evolution' + str(file_number) + '.out', 'r')
@@ -1087,11 +845,12 @@ def readFile(dir_number, file_number):
         count += 1 
 
 
+""" Normalize evolution with epsilon = 1. """
 def normalizeEvolution():
     global epsilonAct, epsilon
     print "Modifying epsilon..."
     for st in evol:
-        st[2]._p[1] =  p_product(st[2]._p[1], 1/sqrt(epsilon))
+        st[2]._p[1] =  backEvol.p_product(st[2]._p[1], 1/sqrt(epsilon))
         st[3][1] = (st[3][1][0] / sqrt(epsilon), [st[3][1][1][i] / sqrt(epsilon) for i in range(len(st[3][1][1]))])
         for curv in st[3][1][1]: curv = curv/sqrt(epsilon)
         for i in range(1, len(st[4])): st[4][i] *= 1/epsilon
@@ -1099,19 +858,19 @@ def normalizeEvolution():
     return evol
 
 
+
+""" Modify evolution such that the energy scale of inflation stays constant. """
 def modEvolution():
     global epsilonAct, epsilon
     first = evol[1]
     last = evol[-1]
     epsilon = last[5][0]/((first[5][0]/epsilonAct) - last[5][1])
-    print epsilon 
-    #if ((epsilon < 0)):
-    #    print "Problem with epsilon..."
-    #    return
+    
     if (epsilon < 0): epsilon = 0
     eps.append(epsilon)
+    
     for st in evol:
-        st[2]._p[1] =  p_product(st[2]._p[1], sqrt(epsilon))
+        st[2]._p[1] = backEvol.p_product(st[2]._p[1], sqrt(epsilon))
         st[3][1] = (st[3][1][0] * sqrt(epsilon), [st[3][1][1][i] * sqrt(epsilon) for i in range(len(st[3][1][1]))])
         for curv in st[3][1][1]: curv = curv * sqrt(epsilon)
         for i in range(1, len(st[4])): st[4][i] *= epsilon
@@ -1119,6 +878,9 @@ def modEvolution():
     return evol
 
 
+
+""" Plot Hubble and \epsilon parameters for different values of \Gamma 
+    such that \lambda is kept constant. """
 def plotHubbleGamma():
     global gammas
     fact = 2.4 * (1.e-9)
@@ -1128,6 +890,8 @@ def plotHubbleGamma():
     allEpsilons = []
     hubbleGammaSL = []
     allEpsilonsSL = []
+
+    """ Calculate values of H and \epsilon. """
     for i in range(len(gammas) - 1):
          first = evolutions[i * len(masses)  * len(sigmas)][0]
          last = evolutions[i * len(masses) * len(sigmas)][-1]
@@ -1147,11 +911,9 @@ def plotHubbleGamma():
                                  * fact * (1/101.0)) * MPLTEV, 10))
          allEpsilonsSL.append(math.log(epsilon, 10))
 
-    print hubbleGamma
-    print hubbleGammaSL
+
     fig = p.figure()
     ax = fig.add_subplot(111)
-    print len(gammas), len(hubbleGamma)
     p.plot([math.log(gammas[i], 10) for i in range(len(gammas) - 1)], hubbleGamma)
     p.text(math.log(gammas[0], 10), hubbleGamma[0], r'$\lambda = 100$')
     p.plot([math.log(gammas[i], 10) for i in range(len(gammas) - 1)], hubbleGammaSL)
@@ -1190,6 +952,7 @@ def plotHubbleGamma():
     p.savefig(plotpath + str(file_number) + "epsilonGamma.png", format = 'png')
     
 
+""" Find the evolution which would have the max \epsilon. """
 def findEpsilonMax(giveLambda, j):
     first = evolutions[j][0]                                                
 
@@ -1199,7 +962,7 @@ def findEpsilonMax(giveLambda, j):
 
 """ Program main."""
 if __name__ == "__main__":
-    dir_number = 374
+    dir_number = 371
     proc = 20          # Fraction of points plotted (integer)
     speciesName = ['r', 'DM', 'DR']
     speciesColor = ['DarkRed', 'blue', 'DarkOrange']
