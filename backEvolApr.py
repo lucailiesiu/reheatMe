@@ -899,16 +899,18 @@ if __name__ == "__main__":
     dirNumber()
     MPL = 1.0
     masses = [1.0e-13]
-    sigmas = [1e-5 * MPL]
-    masses = [1.25e-14, 2.5e-14, 5.0e-14, 1.0e-13, 2.0e-13, 4.0e-13, 8.0e-13, 1.6e-12, 3.2e-12]
-    sigmas = [1e-6 * MPL, 2e-6 * MPL, 4e-6, 8e-6, 1.6e-5, 3.2e-5, 6.4e-5, 1.28e-4] 
+    sigmas = [1e-6 * MPL]
+    #masses = [1.25e-14, 2.5e-14, 5.0e-14, 1.0e-13, 2.0e-13, 4.0e-13, 8.0e-13, 1.6e-12, 3.2e-12]
+    #sigmas = [1e-6 * MPL, 2e-6 * MPL, 4e-6, 8e-6, 1.6e-5, 3.2e-5, 6.4e-5, 1.28e-4] 
     #gammas = [1.0e-39]
-    gammas = [1.0e-28] 
+    gammas = [1.25e-29, 2.5e-29, 5.0e-29, 1.0e-28, 2.0e-28, 4.0e-28, 8.0e-28, 1.6e-27, 3.2e-27, 6.4e-27, 1.28e-26, 2.56e-26, 5.12e-26, 1e-25, 2e-25, 4e-25, 8e-25, 1.6e-24, 3.2e-24, 6.4e-24, 1.28e-23, 2.56e-23, 5.12e-23, 1e-22] 
     #gammas = [1e-30, 1e-29, 1e-28, 1e-27, 1e-26, 1e-25, 1e-24, 1e-23, 1e-22, 1e-21, 1e-20, 1e-19, 1e-18, 1e-17, 1e-16, 1e-15, 1e-14, 1e-13, 1e-12, 1e-11, 1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4]
     #gammas = [0.15e-4, 0.3125e-4, 0.625e-4, 1.25e-4, 2.5e-4, 5e-4, 1e-3, 2e-3, 4e-3, 8e-3, 1.6e-2, 3.2e-2, 6.4e-2, 1.28e-1]
     epsilons = [1.0]
+    Neff = 1.0
+    ratioDRDM = (7./8.) * ((4./11.)**(4./3.)) * (3 + Neff)
     frac = 1.0e-15
-    coupl = [-1.0, -(frac * 2) +  0.45, 2. * frac, 0.55]
+    coupl = [-1.0, -(frac * 2) + (1/(1 + ratioDRDM)) , 2. * frac, (ratioDRDM/(1 + ratioDRDM))]
 
     printInitVal()
 
@@ -928,7 +930,8 @@ if __name__ == "__main__":
                     H = 0.
                     a = 1.00
                     Hubble(initBack)
-                    GAMMA_FINAL = 100 * (m ** 3)/(MPL ** 2)
+                    GAMMA_FINAL = gammafinal * H 
+                    #GAMMA_FINAL = 100 * (m ** 3)/(MPL ** 2)
                     print GAMMA_FINAL
                     gamma = GAMMA_FINAL
                     tau = -1/(a * H)
