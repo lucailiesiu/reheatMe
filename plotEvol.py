@@ -962,7 +962,7 @@ def findEpsilonMax(giveLambda, j):
 
 """ Program main."""
 if __name__ == "__main__":
-    dir_number = 371
+    dir_number = 408
     proc = 20          # Fraction of points plotted (integer)
     speciesName = ['r', 'DM', 'DR']
     speciesColor = ['DarkRed', 'blue', 'DarkOrange']
@@ -983,6 +983,7 @@ if __name__ == "__main__":
     lam = []
     file_number = 0
     H = 0
+    print datapath
     evolutions = []
     for i in range(len(masses)):
         for j in range(len(sigmas)):
@@ -1020,17 +1021,17 @@ if __name__ == "__main__":
                     evol = modEvolution()
                     if (evol !=None):
                         print "Plotting data..."
-                        """
+                        
                         plotCurvCorrelation(evol)
                         
                         plotEvol(evol)
                         plotDensPert(evol)
                         plotPert(evol)
-                        """
+                        
                         init = evol[0][5][0] + evol[0][5][1]
                         lam.append(calculateLambda(evol))
                     file_number += 1
-                    
+    print lam                
     print "Plotting all..."
     plotCurvatures()
     initCurvSpectrum()
