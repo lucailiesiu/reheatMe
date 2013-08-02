@@ -1,0 +1,33 @@
+/********************************************************/ 
+/* README                                               */
+/********************************************************/          
+/* Author: Luca Iliesiu                                 */             
+/* Adviser: David Marsh                                 */             
+/* Last date modified: 08/01/2013                       */
+/* Program:  backEvol.py, backEvolApr, backEvolNODR.py 	*/
+/*           plotEvol.py				*/
+/*                                                      */             
+/* Compiler: Python                                     */             
+/* Dependencies: os, copy, matplotlib, scipy, sys       */ 
+/*               math                                   */             
+/*                                                      */             
+/* Description: Implements simulation for generalized   */
+/* reheating model. We particularize it for the         */
+/* curvaton model. We evolve the perturbation and the   */
+/* background for the curvaton model varying the        */
+/* parameters \m_{\sigma}, \sigma(0) and \Gamma_{sigma},*/
+/* for the curvaton scalar field(s), radiation,         */ 
+/* dark matter, neutrino and dark radiatiom fluids.     */
+/* We evolve the perturbations for separate             */
+/* cosmologies and compute the correlation matrix for   */
+/* any perturbation degree of freedom; we then compute  */
+/* the correlation matrix for the curvature perturbation*/
+/* for each species and then the correlation matrix     */ 
+/* between all the isocurvatures.                       */
+/*                                                      */
+/* We plot the evolution of densities, perturbations    */
+/* and the power spectra. We plot the dependece of the  */
+/* curvaton parameters  (\lambda, \alpha and r) varying */ 
+/*  \m_{\sigma}, \sigma(0) and \Gamma_{sigma}.          */             
+/********************************************************/             
+
