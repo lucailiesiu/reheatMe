@@ -429,7 +429,7 @@ def setInitPert(np, ks, w):
     p = []
     for i in range(len(ks)):
         """ The perturvations in the adiabatic universe. """
-        p.append(Perturbation([0.000], [0.000], [0.00, -(3./2.) * w[1] * np[i], -(3./2.) * w[2] * np[i]], [0.00, (ks[i] ** 2) * tau * np[i]/2.,  (ks[i] ** 2) * tau * np[i]/2.], np[i], ks[i]))
+        p.append(Perturbation([0.000], [0.000], [0.00, -(3./2.) * (1 + w[1]) * np[i], -(3./2.) * (1 + w[2]) * np[i]], [0.00, (ks[i] ** 2) * tau * np[i]/2.,  (ks[i] ** 2) * tau * np[i]/2.], np[i], ks[i]))
         
         """ The perturvations in the adiabatic universe. """
         p.append(Perturbation([-3. * MPL * np[i] * sqrt(epsilon)], [0.000], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], 0.0, ks[i]))

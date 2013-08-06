@@ -363,7 +363,7 @@ def evolve():
                     startDecay = 1
             
         else:
-            dt = 0.0005/H
+            dt = 0.001/H
             state._b._phi[0] = sqrt(state._b._dens[0])/mass[0]
             state._b._phid[0] = sqrt(state._b._dens[0])
             for stp in state._p:
@@ -429,10 +429,11 @@ def setInitPert(np, ks, w):
     p = []
     for i in range(len(ks)):
         """ The perturvations in the adiabatic universe. """
-        p.append(Perturbation([0.000], [0.000], [0.00, -(3./2.) * w[1] * np[i], -(3./2.) * w[2] * np[i], -(3./2.) * w[3] * np[i]], [0.00, (ks[i] ** 2) * tau * np[i]/2.,  (ks[i] ** 2) * tau * np[i]/2.,  (ks[i] ** 2) * tau * np[i]/2.], np[i], ks[i]))
+        p.append(Perturbation([0.000], [0.000], [0.00, -(3./2.) * (1 + w[1]) * np[i], -(3./2.) * (1 + w[2]) * np[i], -(3./2.) * (1 + w[3]) * np[i]], [0.00, (ks[i] ** 2) * tau * np[i]/2.,  (ks[i] ** 2) * tau * np[i]/2.,  (ks[i] ** 2) * tau * np[i]/2.], np[i], ks[i]))
         
         """ The perturvations in the adiabatic universe. """
         p.append(Perturbation([-3. * MPL * np[i] * sqrt(epsilon)], [0.000], [0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0], 0.0, ks[i]))
+
     return p
 
 
@@ -538,14 +539,15 @@ if __name__ == "__main__":
     dirNumber()
     MPL = 1.0
     masses = [1.00e-13]
-    sigmas = [5e-6 * MPL]
-    #masses = [1.25e-14, 2.5e-14, 5.0e-14, 1.0e-13, 2.0e-13, 4.0e-13, 8.0e-13, 1.6e-12, 3.2e-12]
-    #sigmas = [1e-6 * MPL, 2e-6 * MPL, 4e-6, 8e-6, 1.6e-5, 3.2e-5, 6.4e-5, 1.28e-4] 
+    sigmas = [1e-6 * MPL]
+    masses = [3.2e-15, 6.4e-15, 1.25e-14, 2.5e-14, 5.0e-14, 1.0e-13, 2.0e-13, 4.0e-13, 8.0e-13, 1.6e-12, 3.2e-12]
+    sigmas = [0.32e-6 * MPL, 0.64e-6 * MPL, 0.125e-6 * MPL, 0.25e-6 * MPL, 0.5e-6 * MPL, 1e-6 * MPL, 2e-6 * MPL, 4e-6 * MPL, 8e-6 * MPL, 1.6e-5* MPL, 3.2e-5 * MPL, 6.4e-5 * MPL, 1.28e-4 * MPL, 2.56e-4 * MPL] 
     #gammas = [5e-06, 1e-05, 2e-05, 4e-05, 8e-05, 0.00016, 0.00032, 0.00064, 0.00128, 0.00256, 0.00512]
-    gammas = [5.0e-29, 1.0e-28, 2.0e-28, 4.0e-28, 8.0e-28, 1.6e-27, 3.2e-27, 6.4e-27, 1.28e-26, 2.56e-26, 5.12e-26, 1e-25, 2e-25, 4e-25, 8e-25, 1.6e-24, 3.2e-24, 6.4e-24, 1.28e-23, 2.56e-23, 5.12e-23] 
+    #gammas = [5.0e-29, 1.0e-28, 2.0e-28, 4.0e-28, 8.0e-28, 1.6e-27, 3.2e-27, 6.4e-27, 1.28e-26, 2.56e-26, 5.12e-26, 1e-25, 2e-25, 4e-25, 8e-25, 1.6e-24, 3.2e-24, 6.4e-24, 1.28e-23, 2.56e-23, 5.12e-23] 
     #gammas = [1e-30, 1e-29, 1e-28, 1e-27, 1e-26, 1e-25, 1e-24, 1e-23, 1e-22, 1e-21, 1e-20, 1e-19, 1e-18, 1e-17, 1e-16, 1e-15, 1e-14, 1e-13, 1e-12, 1e-11, 1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4]
-    epsilons = [0.1]
-    Neff = 1.0
+    gammas = [1.0]
+    epsilons = [1.0]
+    Neff = 0.9
     ratioDRDM = (7./8.) * ((4./11.)**(4./3.)) * (3 + Neff)
     frac = 1.0e-15
     coupl = [-1.0, -(frac * 2) + (1/(1 + ratioDRDM)) , 2. * frac, (ratioDRDM/(1 + ratioDRDM))]
@@ -570,7 +572,7 @@ if __name__ == "__main__":
                     Hubble(initBack)
                     GAMMA_FINAL = gammafinal * H 
                     # Theoretically predicted \Gamma.
-                    # GAMMA_FINAL = 100 * (m ** 3)/(MPL ** 2)
+                    GAMMA_FINAL = 100 * (m ** 3)/(MPL ** 2)
                     print GAMMA_FINAL
                     gamma = GAMMA_FINAL
                     tau = -1/(a * H)
